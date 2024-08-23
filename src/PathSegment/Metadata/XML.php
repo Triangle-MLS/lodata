@@ -344,7 +344,7 @@ class XML extends Metadata implements StreamInterface
             unset($entityContainer[0]);
         }
 
-        $schemaAnnotations = $schema->addChild('Annotations');
+        $schemaAnnotations = $container_schema->addChild('Annotations');
         $schemaAnnotations->addAttribute('Target', Lodata::getContainerNamespace() . '.' . Lodata::getContainerName());
 
         foreach (Lodata::getAnnotations() as $annotation) {
