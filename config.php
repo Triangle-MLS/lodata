@@ -33,6 +33,15 @@ return [
     'namespace' => env('LODATA_NAMESPACE', 'com.example.odata'),
 
     /*
+     * Support for EntityContainer namespace
+     */
+    'container-namespace' => env('LODATA_CONTAINER_NAMESPACE', env('LODATA_NAMESPACE', 'com.example.odata')),
+    /*
+     * Support for EntityContainer name
+     */
+    'container-name' => env('LODATA_CONTAINER_NAME', 'DefaultContainer'),
+
+    /*
      * The default version of the OData protocol to support for every request.
      */
     'version' => env('LODATA_VERSION', '4.01'),

@@ -202,6 +202,23 @@ class Model implements AnnotationInterface
     }
 
     /**
+     * Get the namespace of this model container
+     * @return string Namespace
+     */
+    public static function getContainerNamespace(): string
+    {
+        return config('lodata.container-namespace');
+    }
+    /**
+     * Get the name of this model container
+     * @return string Name
+     */
+    public static function getContainerName(): string
+    {
+        return config('lodata.container-name');
+    }
+
+    /**
      * Drop a named resource or type from the model
      * @param  IdentifierInterface  $item  Resource or type
      * @return $this
@@ -351,7 +368,7 @@ class Model implements AnnotationInterface
      */
     public function getPbidsUrl(): string
     {
-        return ServiceProvider::endpoint().'_lodata/odata.pbids';
+        return ServiceProvider::endpoint() . '_lodata/odata.pbids';
     }
 
     /**
@@ -370,6 +387,6 @@ class Model implements AnnotationInterface
      */
     public function getOpenApiUrl(): string
     {
-        return ServiceProvider::endpoint().'openapi.json';
+        return ServiceProvider::endpoint() . 'openapi.json';
     }
 }

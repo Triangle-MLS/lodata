@@ -49,6 +49,8 @@ use Illuminate\Support\Facades\Facade;
  * @method static Model drop(Identifier|string $key) Drop a named resource or type from the model
  * @method static EntityContainer getEntityContainer() Get the entity container
  * @method static string getNamespace() Get the namespace of this model
+ * @method static string getContainerNamespace() Get the namespace of this model container
+ * @method static string getContainerName() Get the name of this model container
  * @method static EloquentEntitySet discoverEloquentModel(string $class) Discover the Eloquent model provided as a class name
  * @method static Model discover($discoverable) Discover sets and operations on the provided class name or object instance
  * @method static string getEndpoint() Get the REST endpoint of this model

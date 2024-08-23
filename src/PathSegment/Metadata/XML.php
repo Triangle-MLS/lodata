@@ -57,11 +57,19 @@ class XML extends Metadata implements StreamInterface
         $namespace = Lodata::getNamespace();
 
         // https://docs.oasis-open.org/odata/odata-csdl-xml/v4.01/odata-csdl-xml-v4.01.html#sec_Schema
-        $schema = $dataServices->addChild('Schema', null, 'http://docs.oasis-open.org/odata/ns/edm');
+        [
+            $schema,
+            $container_schema
+        ] =
+            [
+                $dataServices->addChild('Schema', null, 'http://docs.oasis-open.org/odata/ns/edm'),
+                $dataServices->addChild('Schema', null, 'http://docs.oasis-open.org/odata/ns/edm')
+            ];
         $schema->addAttribute('Namespace', $namespace);
+        $container_schema->addAttribute('Namespace', Lodata::getContainerNamespace());
 
         // https://docs.oasis-open.org/odata/odata-csdl-xml/v4.01/odata-csdl-xml-v4.01.html#sec_EntityContainer
-        $entityContainer = $schema->addChild('EntityContainer');
+        $entityContainer = $container_schema->addChild('EntityContainer');
         $entityContainer->addAttribute('Name', Lodata::getEntityContainer()->getName());
 
         foreach (Lodata::getTypeDefinitions() as $typeDefinition) {
@@ -138,10 +146,7 @@ class XML extends Metadata implements StreamInterface
 
             // https://docs.oasis-open.org/odata/odata-csdl-xml/v4.01/odata-csdl-xml-v4.01.html#sec_StructuralProperty
             /** @var Property $property */
-            foreach (ObjectArray::merge(
-                $complexType->getDeclaredProperties(),
-                $complexType->getGeneratedProperties()
-            ) as $property) {
+            foreach (ObjectArray::merge($complexType->getDeclaredProperties(), $complexType->getGeneratedProperties()) as $property) {
                 $entityTypeProperty = $complexTypeElement->addChild('Property');
                 $entityTypeProperty->addAttribute('Name', $property->getName());
 
@@ -199,7 +204,7 @@ class XML extends Metadata implements StreamInterface
                 $navigationPropertyElement->addAttribute('Name', $navigationProperty->getName());
                 $navigationPropertyType = $targetComplexType->getIdentifier()->getQualifiedName();
                 if ($navigationProperty->isCollection()) {
-                    $navigationPropertyType = 'Collection('.$navigationPropertyType.')';
+                    $navigationPropertyType = 'Collection(' . $navigationPropertyType . ')';
                 }
 
                 $navigationPropertyPartner = $navigationProperty->getPartner();
@@ -312,7 +317,7 @@ class XML extends Metadata implements StreamInterface
                     }
 
                     if (!$isBound) {
-                        $operationImportElement = $entityContainer->addChild($resource->getKind().'Import');
+                        $operationImportElement = $entityContainer->addChild($resource->getKind() . 'Import');
                         $operationImportElement->addAttribute('Name', $resource->getName());
                         $operationImportElement->addAttribute(
                             $resource->getKind(),
@@ -340,7 +345,7 @@ class XML extends Metadata implements StreamInterface
         }
 
         $schemaAnnotations = $schema->addChild('Annotations');
-        $schemaAnnotations->addAttribute('Target', $namespace.'.'.'DefaultContainer');
+        $schemaAnnotations->addAttribute('Target', Lodata::getContainerNamespace() . '.' . Lodata::getContainerName());
 
         foreach (Lodata::getAnnotations() as $annotation) {
             $annotation->appendXml($schemaAnnotations);

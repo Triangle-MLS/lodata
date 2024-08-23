@@ -106,10 +106,7 @@ class JSON extends Metadata implements ResponseInterface, JsonInterface
             }
 
             /** @var Property $property */
-            foreach (ObjectArray::merge(
-                $complexType->getDeclaredProperties(),
-                $complexType->getGeneratedProperties()
-            ) as $property) {
+            foreach (ObjectArray::merge($complexType->getDeclaredProperties(), $complexType->getGeneratedProperties()) as $property) {
                 $complexTypeProperty = (object) [];
                 $complexTypeElement->{$property->getName()} = $complexTypeProperty;
                 $propertyType = $property->getType();
@@ -239,7 +236,7 @@ class JSON extends Metadata implements ResponseInterface, JsonInterface
 
                     if (!$isBound) {
                         $operationImportElement = (object) [];
-                        $entityContainer->{$resource->getIdentifier()->getResolvedName($namespace).'Import'} = $operationImportElement;
+                        $entityContainer->{$resource->getIdentifier()->getResolvedName($namespace) . 'Import'} = $operationImportElement;
                         $operationImportElement->{$resource->isAction() ? '$Action' : '$Function'} = $resource->getIdentifier()->getQualifiedName();
 
                         if ($returnType instanceof EntitySet) {
@@ -260,7 +257,7 @@ class JSON extends Metadata implements ResponseInterface, JsonInterface
         $entityContainer->{'$Annotations'} = $schemaAnnotationsElement;
 
         $targetElement = (object) [];
-        $schemaAnnotationsElement->{$namespace.'.'.'DefaultContainer'} = $targetElement;
+        $schemaAnnotationsElement->{Lodata::getContainerNamespace() . '.' . Lodata::getContainerName()} = $targetElement;
 
         foreach (Lodata::getAnnotations() as $annotation) {
             $annotation->appendJson($targetElement);

@@ -13,6 +13,6 @@ class EntityContainer extends ObjectArray implements NameInterface
 
     public function __construct()
     {
-        $this->setIdentifier('DefaultContainer');
+        $this->setIdentifier(config('lodata.container-name', 'DefaultContainer'));
     }
 }
