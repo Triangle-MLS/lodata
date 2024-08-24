@@ -340,12 +340,12 @@ abstract class EntitySet implements EntityTypeInterface, ReferenceInterface, Ide
                 $transaction->processDeltaPayloads($entity);
 
                 if (
-                    $transaction->getPreferenceValue(Constants::return) === Constants::minimal &&
+                    $transaction->getPreferenceValue(Constants::return ) === Constants::minimal &&
                     !$transaction->getSelect()->hasValue() &&
                     !$transaction->getExpand()->hasValue()
                 ) {
                     throw (new NoContentException)
-                        ->header(Constants::preferenceApplied, Constants::return.'='.Constants::minimal)
+                        ->header(Constants::preferenceApplied, Constants::return . '=' . Constants::minimal)
                         ->header(Constants::odataEntityId, $entity->getResourceUrl($transaction));
                 }
 
@@ -399,10 +399,10 @@ abstract class EntitySet implements EntityTypeInterface, ReferenceInterface, Ide
     public function getContextUrl(Transaction $transaction): string
     {
         if ($this->usesReferences()) {
-            return $transaction->getContextUrl().'#Collection($ref)';
+            return $transaction->getContextUrl() . '#Collection($ref)';
         }
 
-        $url = $transaction->getContextUrl().'#'.$this->getName();
+        $url = $transaction->getContextUrl() . '#' . $this->getName();
         $properties = $transaction->getProjectedProperties();
 
         if ($properties) {
@@ -419,7 +419,7 @@ abstract class EntitySet implements EntityTypeInterface, ReferenceInterface, Ide
      */
     public function getResourceUrl(Transaction $transaction): string
     {
-        $url = Transaction::getResourceUrl().$this->getName();
+        $url = Transaction::getResourceUrl() . $this->getName();
         $properties = $transaction->getResourceUrlProperties();
 
         if ($properties) {
@@ -453,19 +453,9 @@ abstract class EntitySet implements EntityTypeInterface, ReferenceInterface, Ide
         assert($this->cloned);
 
         if ($this->applyQueryOptions) {
-            foreach (
-                [
-                    [CountInterface::class, $transaction->getCount()],
-                    [FilterInterface::class, $transaction->getFilter()],
-                    [OrderByInterface::class, $transaction->getOrderBy()],
-                    [SearchInterface::class, $transaction->getSearch()],
-                    [PaginationInterface::class, $transaction->getSkip()],
-                    [[PaginationInterface::class, TokenPaginationInterface::class], $transaction->getTop()],
-                    [ExpandInterface::class, $transaction->getExpand()]
-                ] as $sqo
-            ) {
+            foreach ([[CountInterface::class, $transaction->getCount()], [FilterInterface::class, $transaction->getFilter()], [OrderByInterface::class, $transaction->getOrderBy()], [SearchInterface::class, $transaction->getSearch()], [PaginationInterface::class, $transaction->getSkip()], [[PaginationInterface::class, TokenPaginationInterface::class], $transaction->getTop()], [ExpandInterface::class, $transaction->getExpand()]] as $sqo) {
                 /** @var Option $option */
-                list ($classes, $option) = $sqo;
+                list($classes, $option) = $sqo;
 
                 if (!$option->hasValue()) {
                     continue;
@@ -823,9 +813,13 @@ abstract class EntitySet implements EntityTypeInterface, ReferenceInterface, Ide
                 $transactionParams = array_diff_key(
                     $transaction->getQueryParams(),
                     array_flip([Option\Top::param, Option\Skip::param, Option\SkipToken::param]),
-                    array_flip(['$'.Option\Top::param, '$'.Option\Skip::param, '$'.Option\SkipToken::param]),
+                    array_flip(['$' . Option\Top::param, '$' . Option\Skip::param, '$' . Option\SkipToken::param]),
                 );
-
+                // throw new \Exception(json_encode([
+                //     $transaction->getQueryParams(),
+                //     $transactionParams,
+                //     $paginationParams
+                // ]));
                 $metadata['nextLink'] = Url::http_build_url(
                     $resourceUrl,
                     [
@@ -875,8 +869,10 @@ abstract class EntitySet implements EntityTypeInterface, ReferenceInterface, Ide
     public function processDeltaModify(Transaction $transaction, Entity $entity): Entity
     {
         if (!$this instanceof UpdateInterface) {
-            throw new BadRequestException('target_entity_set_cannot_update',
-                'The requested entity set does not support update operations');
+            throw new BadRequestException(
+                'target_entity_set_cannot_update',
+                'The requested entity set does not support update operations'
+            );
         }
 
         Gate::update($entity, $transaction)->ensure();
@@ -1114,9 +1110,11 @@ abstract class EntitySet implements EntityTypeInterface, ReferenceInterface, Ide
      */
     protected function assertValidSearch(): void
     {
-        if ($this->getType()->getDeclaredProperties()->filter(function ($property) {
-            return $property->isSearchable();
-        })->isEmpty()) {
+        if (
+            $this->getType()->getDeclaredProperties()->filter(function ($property) {
+                return $property->isSearchable();
+            })->isEmpty()
+        ) {
             throw new InternalServerErrorException(
                 'query_no_searchable_properties',
                 'The provided query had no properties marked searchable'

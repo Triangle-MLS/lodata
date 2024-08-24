@@ -299,6 +299,13 @@ class Transaction
             );
         }
 
+        if ($this->hasSystemQueryOption('orderby') && $this->hasSystemQueryOption('skiptoken')) {
+            throw new NotFoundException(
+                'invalid_system_query_option',
+                'The orderby parameter cannot be applied with the skiptoken parameter'
+            );
+        }
+
         return $this;
     }
 
@@ -379,7 +386,16 @@ class Transaction
         $key = strtolower($key);
         $params = array_change_key_case($this->getQueryParams(), CASE_LOWER);
 
-        return $params[$key] ?? ($params['$'.$key] ?? null);
+        return $params[$key] ?? $params['$' . $key] ?? null;
+    }
+
+    public function hasSystemQueryOption(string $key): bool
+    {
+        $key = strtolower($key);
+        $params = array_change_key_case($this->getQueryParams(), CASE_LOWER);
+        $keys = array_keys($params);
+
+        return array_search($key, $keys) || array_search('$' . $key, $keys);
     }
 
     /**
@@ -577,7 +593,7 @@ class Transaction
      */
     public function getPreference(string $preference): ?Parameter
     {
-        return $this->preferences->getParameter($preference) ?? $this->preferences->getParameter('odata.'.$preference);
+        return $this->preferences->getParameter($preference) ?? $this->preferences->getParameter('odata.' . $preference);
     }
 
     /**
@@ -650,7 +666,7 @@ class Transaction
                 );
             }
 
-            return MediaTypes::factory('application/'.$formatQueryOption);
+            return MediaTypes::factory('application/' . $formatQueryOption);
         }
 
         if ($formatQueryOption) {
@@ -769,7 +785,7 @@ class Transaction
 
         foreach ($unreservedChars as $unreservedChar) {
             $path = str_replace(
-                '%'.str_pad(dechex(ord((string) $unreservedChar)), 2, '0', STR_PAD_LEFT),
+                '%' . str_pad(dechex(ord((string) $unreservedChar)), 2, '0', STR_PAD_LEFT),
                 (string) $unreservedChar,
                 $path
             );
@@ -796,7 +812,7 @@ class Transaction
      */
     public function getParameterAlias(string $key): ?string
     {
-        $value = $this->getQueryParam('@'.ltrim($key, '@'));
+        $value = $this->getQueryParam('@' . ltrim($key, '@'));
 
         if (null === $value) {
             throw new BadRequestException(
@@ -930,13 +946,26 @@ class Transaction
     private function getSystemQueryOptions(bool $prefixed = true): array
     {
         $options = [
-            'apply', 'count', 'compute', 'expand', 'format', 'filter', 'orderby', 'search', 'select', 'skip',
-            'skiptoken', 'top', 'schemaversion', 'id', 'index',
+            'apply',
+            'count',
+            'compute',
+            'expand',
+            'format',
+            'filter',
+            'orderby',
+            'search',
+            'select',
+            'skip',
+            'skiptoken',
+            'top',
+            'schemaversion',
+            'id',
+            'index',
         ];
 
         if ($prefixed) {
             $options = array_map(function ($option) {
-                return '$'.$option;
+                return '$' . $option;
             }, $options);
         }
 
@@ -950,7 +979,7 @@ class Transaction
      */
     public function getContextUrl(): string
     {
-        return ServiceProvider::endpoint().'$metadata';
+        return ServiceProvider::endpoint() . '$metadata';
     }
 
     /**
@@ -1008,7 +1037,7 @@ class Transaction
 
         $select = $this->getSelect();
         if ($select->hasValue() && !$select->isStar()) {
-            $properties['$select'] = '('.$select->getValue().')';
+            $properties['$select'] = '(' . $select->getValue() . ')';
         }
 
         $expand = $this->getExpand();
@@ -1263,7 +1292,7 @@ class Transaction
             $response = $emitter->response($this);
             $this->commit();
             return $response;
-        } catch (AcceptedException|NoContentException $e) { // Success responses
+        } catch (AcceptedException | NoContentException $e) { // Success responses
             $this->commit();
             throw $e;
         } catch (ProtocolException $e) { // Error responses
@@ -1458,7 +1487,7 @@ class Transaction
                     /** @var Entity $entity */
                     try {
                         $entity = EntitySet::pipe($deltaTransaction, $deltaPayload['@id']);
-                    } catch (PathNotHandledException|NotFoundException $e) {
+                    } catch (PathNotHandledException | NotFoundException $e) {
                         throw new BadRequestException(
                             'related_entity_missing',
                             'The requested related entity did not exist',
@@ -1485,7 +1514,9 @@ class Transaction
                 switch (true) {
                     case array_key_exists('@removed', $deltaPayload):
                         $entitySet->processDeltaRemove(
-                            $deltaPayload['@removed']['reason'] ?? '', $deltaTransaction, $entity
+                            $deltaPayload['@removed']['reason'] ?? '',
+                            $deltaTransaction,
+                            $entity
                         );
                         break;
 

@@ -43,6 +43,7 @@ use Flat3\Lodata\Interfaces\EntitySet\PaginationInterface;
 use Flat3\Lodata\Interfaces\EntitySet\QueryInterface;
 use Flat3\Lodata\Interfaces\EntitySet\ReadInterface;
 use Flat3\Lodata\Interfaces\EntitySet\SearchInterface;
+use Flat3\Lodata\Interfaces\EntitySet\TokenPaginationInterface;
 use Flat3\Lodata\Interfaces\EntitySet\UpdateInterface;
 use Flat3\Lodata\Interfaces\TransactionInterface;
 use Flat3\Lodata\NavigationBinding;
@@ -76,7 +77,7 @@ use Staudenmeir\EloquentJsonRelations\Relations\HasManyJson;
  * Eloquent Entity Set
  * @package Flat3\Lodata\Drivers
  */
-class EloquentEntitySet extends EntitySet implements CountInterface, CreateInterface, DeleteInterface, ExpandInterface, FilterInterface, OrderByInterface, PaginationInterface, QueryInterface, ReadInterface, SearchInterface, TransactionInterface, UpdateInterface, ComputeInterface
+class EloquentEntitySet extends EntitySet implements CountInterface, CreateInterface, DeleteInterface, ExpandInterface, FilterInterface, OrderByInterface, PaginationInterface, TokenPaginationInterface, QueryInterface, ReadInterface, SearchInterface, TransactionInterface, UpdateInterface, ComputeInterface
 {
     use SQLConnection;
     use SQLOrderBy;
@@ -92,12 +93,21 @@ class EloquentEntitySet extends EntitySet implements CountInterface, CreateInter
     protected $model;
 
     /**
+     * Eloquent model token field name.
+     * This field must be generated at the database level.
+     * The order of records must not change upon the addition of a new record.
+     * This record value must not change, otherwise true replication is not possible.
+     * @var string $tokenField
+     */
+    protected string $tokenField;
+
+    /**
      * Chunk size used for internal pagination
      * @var int $chunkSize
      */
     public static $chunkSize = 1000;
 
-    public function __construct(string $model, ?EntityType $entityType = null)
+    public function __construct(string $model, ?EntityType $entityType = null, string $tokenField = null)
     {
         if (!is_a($model, Model::class, true)) {
             throw new ConfigurationException(
@@ -107,6 +117,7 @@ class EloquentEntitySet extends EntitySet implements CountInterface, CreateInter
         }
 
         $this->model = $model;
+        $this->tokenField = $tokenField;
 
         $name = self::convertClassName($model);
         if (!$entityType) {
@@ -306,7 +317,7 @@ class EloquentEntitySet extends EntitySet implements CountInterface, CreateInter
             $builder = $expansionBuilder;
 
             if ($builder instanceof HasManyThrough) {
-                $builder->select($builder->getRelated()->getTable().'.*');
+                $builder->select($builder->getRelated()->getTable() . '.*');
             }
         }
 
@@ -315,7 +326,13 @@ class EloquentEntitySet extends EntitySet implements CountInterface, CreateInter
         $builder->with($this->getRelationships());
 
         $page = 1;
-        $skipValue = $this->getSkip()->getValue();
+        $skipValue = 0;
+        $skipToken = null;
+        if (($this->tokenField !== null) && $this->getTransaction()->hasSystemQueryOption('skiptoken')) {
+            $skipToken = $this->getSkipToken();
+        } else {
+            $skipValue = $this->getSkip()->getValue();
+        }
 
         $chunkSize = self::$chunkSize;
         if ($this->getTop()->hasValue() && $this->getTop()->getValue() > 0) {
@@ -326,8 +343,16 @@ class EloquentEntitySet extends EntitySet implements CountInterface, CreateInter
             $offset = (($page++ - 1) * $chunkSize) + $skipValue;
             $results = $builder->offset($offset)->limit($chunkSize)->get();
 
+            $token = null;
+
             foreach ($results as $result) {
                 yield $this->modelToEntity($result);
+
+                $token = array_change_key_case($result->toArray(), CASE_LOWER)[strtolower($this->tokenField)];
+            }
+
+            if ($skipToken !== null) {
+                $skipToken->setValue((string) $token);
             }
 
             if ($results->count() <= $chunkSize) {
@@ -337,7 +362,7 @@ class EloquentEntitySet extends EntitySet implements CountInterface, CreateInter
     }
 
     /**
-     * Implement $compute, $top, $skip, $orderby, $filter, $search to Builder
+     * Implement $compute, $top, $skip, $skiptoken, $orderby, $filter, $search to Builder
      * @param $builder
      * @return void
      */
@@ -351,22 +376,31 @@ class EloquentEntitySet extends EntitySet implements CountInterface, CreateInter
             $builder->whereRaw($where->getStatement(), $where->getParameters());
         }
 
-        $orderby = $this->generateOrderBy();
+        if (!(($this->tokenField !== null) && $this->getTransaction()->hasSystemQueryOption('skiptoken'))) {
+            $orderby = $this->generateOrderBy();
 
-        if ($orderby->hasStatement()) {
-            $builder->orderByRaw($orderby->getStatement(), $orderby->getParameters());
+            if ($orderby->hasStatement()) {
+                $builder->orderByRaw($orderby->getStatement(), $orderby->getParameters());
+            }
         }
 
         if ($this->getTop()->hasValue()) {
             $builder->limit($this->getTop()->getValue());
         }
 
-        if ($this->getSkip()->hasValue()) {
-            if (!$this->getTop()->hasValue()) {
-                $builder->limit(PHP_INT_MAX);
+        if (($this->tokenField !== null) && $this->getTransaction()->hasSystemQueryOption('skiptoken')) {
+            if ($this->getSkipToken()->hasValue()) {
+                $builder->where($this->tokenField, '>', $this->getSkipToken()->getValue());
             }
+            $builder->orderBy($this->tokenField, 'asc');
+        } else {
+            if ($this->getSkip()->hasValue()) {
+                if (!$this->getTop()->hasValue()) {
+                    $builder->limit(PHP_INT_MAX);
+                }
 
-            $builder->skip($this->getSkip()->getValue());
+                $builder->skip($this->getSkip()->getValue());
+            }
         }
     }
 
@@ -399,7 +433,7 @@ class EloquentEntitySet extends EntitySet implements CountInterface, CreateInter
                 $relations,
                 Collection::make($expansionSet->getRelationships())
                     ->mapWithKeys(function ($item, $key) use ($expansionPropertyName) {
-                        return ["{$expansionPropertyName}.".$key => $item];
+                        return ["{$expansionPropertyName}." . $key => $item];
                     })
                     ->all()
             );
@@ -430,7 +464,7 @@ class EloquentEntitySet extends EntitySet implements CountInterface, CreateInter
             $tree = $computeParser->generateTree($computedProperty->getExpression());
             $expression->evaluate($tree);
             $builder->selectRaw(
-                $expression->getStatement().' as '.$this->quoteSingleIdentifier($computedProperty->getName()),
+                $expression->getStatement() . ' as ' . $this->quoteSingleIdentifier($computedProperty->getName()),
                 $expression->getParameters()
             );
         }
@@ -585,7 +619,7 @@ class EloquentEntitySet extends EntitySet implements CountInterface, CreateInter
         } catch (ReflectionException $e) {
             throw new ConfigurationException(
                 'cannot_add_constraint',
-                'The constraint method did not exist on the model: '.get_class($model),
+                'The constraint method did not exist on the model: ' . get_class($model),
                 $e
             );
         }
